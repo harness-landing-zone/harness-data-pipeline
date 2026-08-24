@@ -5,5 +5,13 @@ name_prefix   = "data-pipeline"
 env           = "dev"
 pipeline_name = "accounts-daily"
 
+harness_org_id                     = "data_engineers"
+harness_project_id                 = "data_pipeline_reference"
+harness_arrival_service_identifier = "arrival_lambda"
+harness_s3_connector_ref           = "account.s3storage"
+
+# Set true only when onboarding the existing arrival_lambda Harness service.
+import_existing_harness_arrival_service = false
+
 # Set true only for an explicitly disposable environment.
 destroyable = false

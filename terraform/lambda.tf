@@ -4,7 +4,7 @@ locals {
 }
 
 resource "aws_lambda_function" "arrival" {
-  function_name = "${local.name}-${var.pipeline_name}-arrival"
+  function_name = local.arrival_lambda_name
   description   = "Validate a landing CSV and start the data-pipeline state machine."
   role          = aws_iam_role.lambda_arrival.arn
   runtime       = "python3.12"

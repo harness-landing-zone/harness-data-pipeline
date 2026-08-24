@@ -64,6 +64,15 @@ output "runtime_orchestration" {
   }
 }
 
+output "harness_arrival_service" {
+  description = "Harness CD service generated for the OpenTofu-managed arrival Lambda."
+  value = {
+    identifier      = harness_platform_service.arrival.identifier
+    name            = harness_platform_service.arrival.name
+    lambda_function = aws_lambda_function.arrival.function_name
+  }
+}
+
 output "naming_contract" {
   description = <<-DESC
     The IAM roles grant access by wildcard over these name patterns. Anything you

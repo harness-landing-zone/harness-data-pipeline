@@ -8,6 +8,9 @@ locals {
 
   name = "${var.name_prefix}-${var.env}"
 
+  arrival_lambda_name        = "${local.name}-${var.pipeline_name}-arrival"
+  arrival_service_identifier = var.harness_arrival_service_identifier
+
   common_tags = {
     Project      = "data-pipeline-reference"
     Environment  = var.env

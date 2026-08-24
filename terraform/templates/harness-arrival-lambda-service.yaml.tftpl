@@ -1,0 +1,35 @@
+service:
+  name: ${SERVICE_NAME}
+  identifier: ${SERVICE_IDENTIFIER}
+  description: "Deploy the arrival-handler ZIP to the Lambda created by OpenTofu."
+  tags:
+    type: lambda
+    managed_by: iacm
+    data_pipeline: ${PIPELINE_NAME}
+    aws_function: ${SERVICE_NAME}
+  orgIdentifier: ${ORG_IDENTIFIER}
+  projectIdentifier: ${PROJECT_IDENTIFIER}
+  serviceDefinition:
+    type: AwsLambda
+    spec:
+      manifests:
+        - manifest:
+            identifier: function_definition
+            type: AwsLambdaFunctionDefinition
+            spec:
+              store:
+                type: Inline
+                spec:
+                  content: |-
+                    ${FUNCTION_DEFINITION}
+      artifacts:
+        primary:
+          primaryArtifactRef: arrival_lambda_zip
+          sources:
+            - identifier: arrival_lambda_zip
+              type: AmazonS3
+              spec:
+                connectorRef: ${S3_CONNECTOR_REF}
+                region: ${AWS_REGION}
+                bucketName: ${ARTIFACTS_BUCKET}
+                filePath: <+input>

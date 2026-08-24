@@ -19,6 +19,7 @@ this stack already exists, migrate or import its state before the first plan.
 | Step Functions workflow | 1 | Standard workflow with one synchronous Glue task |
 | S3 event notification | 1 | Only `accounts-daily/landing/*.csv` invokes the arrival Lambda |
 | CloudWatch log group | 1 | Step Functions logs retained for 14 days |
+| Harness CD service | 1 | Deploys immutable ZIP releases to the OpenTofu-created arrival Lambda |
 
 `artifacts` is the one to look at closely. It is not a data zone — it is where
 Glue job code and the shared Python wheel live. **It is a deploy target.**
@@ -56,6 +57,43 @@ one active manifest; they do not run `tofu apply` unless infrastructure changes.
 
 Infrastructure settings have working defaults (`eu-west-2`, prefix
 `data-pipeline`, env `dev`, pipeline `accounts-daily`).
+
+## Harness service bootstrap
+
+OpenTofu renders `templates/harness-arrival-lambda-service.yaml.tftpl` and
+creates the Harness CD service after its Lambda and artifact bucket exist. The
+Harness service display name is the AWS function name; its identifier remains a
+stable Harness-safe input. Select OpenTofu 1.7 or later for the IaCM workspace.
+
+Add these environment variables to the IaCM workspace:
+
+```text
+HARNESS_ACCOUNT_ID
+HARNESS_PLATFORM_API_KEY  # secret
+```
+
+Store the API key as a Harness secret, not an OpenTofu variable. The API key
+needs Service create/update permissions in `harness_org_id` and
+`harness_project_id`. The S3 connector is supplied by
+`harness_s3_connector_ref`.
+
+This project already contains the inline `arrival_lambda` Harness service. Make
+it state-managed by setting this OpenTofu workspace variable for the first
+plan/approval/apply:
+
+```hcl
+import_existing_harness_arrival_service = true
+```
+
+The declarative import appears in the plan and becomes inert after the service
+is in state. New template instances leave the variable `false`, so OpenTofu
+creates their service.
+
+For the reusable paved road, create a linked Harness IaCM workspace template
+that locks the OpenTofu version, repository path, AWS connector, default
+provision pipeline, required tags, and the shared Harness credential variables.
+Keep environment, pipeline name, Harness project, Service identifier, and S3
+connector reference as workspace inputs.
 
 `destroyable` defaults to `false`. Enable it only for an explicitly disposable
 environment.

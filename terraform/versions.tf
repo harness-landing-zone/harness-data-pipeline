@@ -1,10 +1,15 @@
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.7.0"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.60"
+    }
+
+    harness = {
+      source  = "harness/harness"
+      version = "~> 0.45.0"
     }
   }
 
@@ -19,3 +24,8 @@ provider "aws" {
     tags = local.common_tags
   }
 }
+
+# Authentication comes from HARNESS_ACCOUNT_ID and HARNESS_PLATFORM_API_KEY in
+# the IaCM workspace. Keeping credentials out of HCL also keeps them out of
+# plans and variable files.
+provider "harness" {}
