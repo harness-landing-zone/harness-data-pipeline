@@ -73,6 +73,11 @@ output "harness_arrival_service" {
   }
 }
 
+output "harness_arrival_service_identifier" {
+  description = "Scalar Harness Service identifier for a downstream CD stage."
+  value       = harness_platform_service.arrival.identifier
+}
+
 output "naming_contract" {
   description = <<-DESC
     The IAM roles grant access by wildcard over these name patterns. Anything you

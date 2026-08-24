@@ -1,16 +1,16 @@
 pipeline:
-  name: Data Pipeline IaCM
+  name: Data Pipeline Provision and Deploy
   identifier: data_pipeline_iacm
   projectIdentifier: data_pipeline_reference
   orgIdentifier: data_engineers
-  description: Plan and provision the stable AWS data-pipeline graph from an IaCM workspace.
+  description: Provision the stable AWS graph, then deploy the arrival Lambda release.
   tags: {}
   stages:
     - stage:
         name: Provision AWS Graph
         identifier: provision_aws_graph
         type: IACM
-        description: Manage S3, IAM, Glue job shells, Lambda configuration, triggers, and Step Functions.
+        description: Manage S3, IAM, Glue, Lambda infrastructure, triggers, Step Functions, and the Harness Service.
         spec:
           workspace: <+input>
           platform:
@@ -51,3 +51,51 @@ pipeline:
             description: AWS region used by the IaCM plugin and STS.
             required: true
             value: eu-west-2
+    - stage:
+        name: Deploy Arrival Lambda
+        identifier: deploy_arrival_lambda
+        type: Deployment
+        description: Deploy an immutable ZIP to the Service created or updated by the IaCM stage.
+        spec:
+          deploymentType: AwsLambda
+          service:
+            serviceRef: <+pipeline.stages.provision_aws_graph.spec.execution.steps.apply.output.outputVariables.harness_arrival_service_identifier>
+            serviceInputs:
+              serviceDefinition:
+                type: AwsLambda
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: arrival_lambda_zip
+                      sources:
+                        - identifier: arrival_lambda_zip
+                          type: AmazonS3
+                          spec:
+                            filePath: <+input>
+          environment:
+            environmentRef: development
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: arrival_lambda_eu_west_2
+          execution:
+            steps:
+              - step:
+                  name: Deploy Arrival Lambda
+                  identifier: deploy_arrival_lambda
+                  type: AwsLambdaDeploy
+                  timeout: 10m
+                  spec: {}
+            rollbackSteps:
+              - step:
+                  name: Roll Back Arrival Lambda
+                  identifier: rollback_arrival_lambda
+                  type: AwsLambdaRollback
+                  timeout: 10m
+                  spec: {}
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
