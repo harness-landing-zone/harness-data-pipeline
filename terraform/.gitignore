@@ -1,0 +1,7 @@
+.terraform/
+# .terraform.lock.hcl is intentionally NOT ignored - commit it for reproducible provider versions
+terraform.tfstate
+terraform.tfstate.*
+terraform.tfvars
+*.tfplan
+crash.log

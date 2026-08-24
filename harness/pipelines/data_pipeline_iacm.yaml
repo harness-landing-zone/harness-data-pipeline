@@ -1,0 +1,53 @@
+pipeline:
+  name: Data Pipeline IaCM
+  identifier: data_pipeline_iacm
+  projectIdentifier: data_pipeline_reference
+  orgIdentifier: data_engineers
+  description: Plan and provision the stable AWS data-pipeline graph from an IaCM workspace.
+  tags: {}
+  stages:
+    - stage:
+        name: Provision AWS Graph
+        identifier: provision_aws_graph
+        type: IACM
+        description: Manage S3, IAM, Glue job shells, Lambda configuration, triggers, and Step Functions.
+        spec:
+          workspace: <+input>
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: IACMTerraformPlugin
+                  name: Init
+                  identifier: init
+                  spec:
+                    command: init
+              - step:
+                  type: IACMTerraformPlugin
+                  name: Plan
+                  identifier: plan
+                  spec:
+                    command: plan
+              - step:
+                  type: IACMApproval
+                  name: Approve Plan
+                  identifier: approve_plan
+                  timeout: 1d
+                  spec: {}
+              - step:
+                  type: IACMTerraformPlugin
+                  name: Apply
+                  identifier: apply
+                  spec:
+                    command: apply
+        variables:
+          - name: PLUGIN_AWS_REGION
+            type: String
+            description: AWS region used by the IaCM plugin and STS.
+            required: true
+            value: eu-west-2

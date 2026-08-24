@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars and adjust.
+
+aws_region    = "eu-west-2"
+name_prefix   = "data-pipeline"
+env           = "dev"
+pipeline_name = "accounts-daily"
+
+# Set true only for an explicitly disposable environment.
+destroyable = false
