@@ -12,6 +12,7 @@ locals {
       S3_CONNECTOR_REF    = jsonencode(var.harness_s3_connector_ref)
       AWS_REGION          = jsonencode(local.region)
       ARTIFACTS_BUCKET    = jsonencode(aws_s3_bucket.zone["artifacts"].id)
+      BOOTSTRAP_KEY       = jsonencode(component.bootstrap_key)
       FUNCTION_DEFINITION = jsonencode({
         functionName = aws_lambda_function.zip[component_id].function_name
         runtime      = aws_lambda_function.zip[component_id].runtime

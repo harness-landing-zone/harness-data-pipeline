@@ -60,18 +60,6 @@ pipeline:
           deploymentType: AwsLambda
           service:
             serviceRef: <+repeat.item>
-            serviceInputs:
-              serviceDefinition:
-                type: AwsLambda
-                spec:
-                  artifacts:
-                    primary:
-                      primaryArtifactRef: lambda_zip
-                      sources:
-                        - identifier: lambda_zip
-                          type: AmazonS3
-                          spec:
-                            filePath: <+input>
           environment:
             environmentRef: development
             deployToAll: false

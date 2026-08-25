@@ -107,6 +107,8 @@ Keep the desired component inventory and the deployment subset separate.
 exist. `LAMBDA_SERVICES_TO_DEPLOY` is an execution-time CSV list that an Input
 Set may narrow to one or more existing Services; it must never be fed back into
 OpenTofu because omitted components would then be planned for deletion.
+Each generated Service owns its component-specific bootstrap artifact key, so
+the provisioning Input Set does not contain a shared Lambda file path.
 
 The deployment stage uses the Harness **Repeat** strategy now, even while its
 derived list contains one Service, so the one-to-two component transition can
