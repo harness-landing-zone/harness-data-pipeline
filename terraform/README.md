@@ -60,7 +60,7 @@ Infrastructure settings have working defaults (`eu-west-2`, prefix
 
 ## Harness service bootstrap
 
-OpenTofu renders `templates/harness-arrival-lambda-service.yaml.tftpl` and
+OpenTofu renders `templates/harness-zip-lambda-service.yaml.tftpl` and
 creates the Harness CD service after its Lambda and artifact bucket exist. The
 Harness service display name is the AWS function name; its identifier remains a
 stable Harness-safe input. Select OpenTofu 1.7 or later for the IaCM workspace.
@@ -94,6 +94,29 @@ that locks the OpenTofu version, repository path, AWS connector, default
 provision pipeline, required tags, and the shared Harness credential variables.
 Keep environment, pipeline name, Harness project, Service identifier, and S3
 connector reference as workspace inputs.
+
+### Scaling to more Lambdas and services
+
+When the pattern repeats, use an OpenTofu `for_each` over a typed component map
+to create each Lambda shell and its matching Harness Service. OpenTofu already
+creates independent graph nodes concurrently; dependencies still determine the
+order.
+
+Keep the desired component inventory and the deployment subset separate.
+`local.zip_lambda_components` declares which ZIP Lambdas and Harness Services
+exist. `LAMBDA_SERVICES_TO_DEPLOY` is an execution-time CSV list that an Input
+Set may narrow to one or more existing Services; it must never be fed back into
+OpenTofu because omitted components would then be planned for deletion.
+
+The deployment stage uses the Harness **Repeat** strategy now, even while its
+derived list contains one Service, so the one-to-two component transition can
+be tested without changing the pipeline definition. `maxConcurrency` limits
+concurrent repeat iterations; the separate **Parallelism** strategy is not used
+for this case. Continue only after all repeats complete, then promote the
+release manifest and run system integration tests. Keep real dependencies
+sequential: infrastructure before code deployment, ZIP/image publication before
+its Service deployment, and Step Functions or manifest promotion after every
+referenced component is ready.
 
 `destroyable` defaults to `false`. Enable it only for an explicitly disposable
 environment.

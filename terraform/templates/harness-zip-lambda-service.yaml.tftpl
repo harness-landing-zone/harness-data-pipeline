@@ -1,11 +1,12 @@
 service:
   name: ${SERVICE_NAME}
   identifier: ${SERVICE_IDENTIFIER}
-  description: "Deploy the arrival-handler ZIP to the Lambda created by OpenTofu."
+  description: ${SERVICE_DESCRIPTION}
   tags:
     type: lambda
     managed_by: iacm
     data_pipeline: ${PIPELINE_NAME}
+    component: ${COMPONENT_ID}
     aws_function: ${SERVICE_NAME}
   orgIdentifier: ${ORG_IDENTIFIER}
   projectIdentifier: ${PROJECT_IDENTIFIER}
@@ -24,9 +25,9 @@ service:
                     ${FUNCTION_DEFINITION}
       artifacts:
         primary:
-          primaryArtifactRef: arrival_lambda_zip
+          primaryArtifactRef: lambda_zip
           sources:
-            - identifier: arrival_lambda_zip
+            - identifier: lambda_zip
               type: AmazonS3
               spec:
                 connectorRef: ${S3_CONNECTOR_REF}

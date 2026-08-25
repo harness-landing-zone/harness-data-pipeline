@@ -3,7 +3,7 @@ pipeline:
   identifier: data_pipeline_iacm
   projectIdentifier: data_pipeline_reference
   orgIdentifier: data_engineers
-  description: Provision the stable AWS graph, then deploy the arrival Lambda release.
+  description: Provision the stable AWS graph, then deploy selected ZIP Lambda releases.
   tags: {}
   stages:
     - stage:
@@ -52,23 +52,23 @@ pipeline:
             required: true
             value: eu-west-2
     - stage:
-        name: Deploy Arrival Lambda
-        identifier: deploy_arrival_lambda
+        name: Deploy Lambda Service
+        identifier: deploy_lambda_service
         type: Deployment
-        description: Deploy an immutable ZIP to the Service created or updated by the IaCM stage.
+        description: Deploy an immutable ZIP to each selected Service created or updated by the IaCM stage.
         spec:
           deploymentType: AwsLambda
           service:
-            serviceRef: <+pipeline.stages.provision_aws_graph.spec.execution.steps.apply.output.outputVariables.harness_arrival_service_identifier>
+            serviceRef: <+repeat.item>
             serviceInputs:
               serviceDefinition:
                 type: AwsLambda
                 spec:
                   artifacts:
                     primary:
-                      primaryArtifactRef: arrival_lambda_zip
+                      primaryArtifactRef: lambda_zip
                       sources:
-                        - identifier: arrival_lambda_zip
+                        - identifier: lambda_zip
                           type: AmazonS3
                           spec:
                             filePath: <+input>
@@ -80,15 +80,15 @@ pipeline:
           execution:
             steps:
               - step:
-                  name: Deploy Arrival Lambda
-                  identifier: deploy_arrival_lambda
+                  name: Deploy Lambda
+                  identifier: deploy_lambda
                   type: AwsLambdaDeploy
                   timeout: 10m
                   spec: {}
             rollbackSteps:
               - step:
-                  name: Roll Back Arrival Lambda
-                  identifier: rollback_arrival_lambda
+                  name: Roll Back Lambda
+                  identifier: rollback_lambda
                   type: AwsLambdaRollback
                   timeout: 10m
                   spec: {}
@@ -99,3 +99,14 @@ pipeline:
                 - AllErrors
               action:
                 type: StageRollback
+        strategy:
+          repeat:
+            items: <+<+pipeline.variables.LAMBDA_SERVICES_TO_DEPLOY>.split(",")>
+            maxConcurrency: 2
+  variables:
+    - name: LAMBDA_SERVICES_TO_DEPLOY
+      type: String
+      description: Comma-separated deployment subset. Defaults to every ZIP Lambda Service managed by this workspace.
+      required: false
+      value: <+input>.default(<+pipeline.stages.provision_aws_graph.spec.execution.steps.apply.output.outputVariables.harness_lambda_service_identifiers_csv>)
+  allowStageExecutions: true

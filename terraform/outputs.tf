@@ -58,7 +58,7 @@ output "ingest_raw_glue_job" {
 output "runtime_orchestration" {
   description = "Arrival trigger and state machine for the event-driven landing-to-raw path."
   value = {
-    arrival_lambda     = aws_lambda_function.arrival.function_name
+    arrival_lambda     = aws_lambda_function.zip["arrival"].function_name
     state_machine_arn  = aws_sfn_state_machine.orchestrator.arn
     active_release_uri = "s3://${aws_s3_bucket.zone["artifacts"].id}/${local.active_release_key}"
   }
@@ -67,15 +67,25 @@ output "runtime_orchestration" {
 output "harness_arrival_service" {
   description = "Harness CD service generated for the OpenTofu-managed arrival Lambda."
   value = {
-    identifier      = harness_platform_service.arrival.identifier
-    name            = harness_platform_service.arrival.name
-    lambda_function = aws_lambda_function.arrival.function_name
+    identifier      = harness_platform_service.lambda["arrival"].identifier
+    name            = harness_platform_service.lambda["arrival"].name
+    lambda_function = aws_lambda_function.zip["arrival"].function_name
   }
 }
 
 output "harness_arrival_service_identifier" {
   description = "Scalar Harness Service identifier for a downstream CD stage."
-  value       = harness_platform_service.arrival.identifier
+  value       = harness_platform_service.lambda["arrival"].identifier
+}
+
+output "harness_lambda_service_identifiers" {
+  description = "Harness Service identifiers for every OpenTofu-managed ZIP Lambda."
+  value       = sort([for service in harness_platform_service.lambda : service.identifier])
+}
+
+output "harness_lambda_service_identifiers_csv" {
+  description = "Comma-separated Harness Service identifiers for a downstream Repeat strategy."
+  value       = join(",", sort([for service in harness_platform_service.lambda : service.identifier]))
 }
 
 output "naming_contract" {
