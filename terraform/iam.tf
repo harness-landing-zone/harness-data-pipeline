@@ -232,6 +232,25 @@ resource "aws_iam_role_policy" "lambda_arrival" {
   policy = data.aws_iam_policy_document.lambda_arrival.json
 }
 
+# Additional ZIP Lambdas start with logs-only permissions. Add explicit,
+# component-owned policies when their integrations are known.
+resource "aws_iam_role" "lambda_additional" {
+  for_each = var.additional_zip_lambdas
+
+  name               = "${local.name}-${var.pipeline_name}-lambda-${replace(each.key, "_", "-")}"
+  description        = "Execution role for the ${var.pipeline_name} ${each.key} Lambda (ZIP)."
+  assume_role_policy = data.aws_iam_policy_document.assume["lambda"].json
+
+  tags = { Component = "lambda-${each.key}" }
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_additional_basic" {
+  for_each = var.additional_zip_lambdas
+
+  role       = aws_iam_role.lambda_additional[each.key].name
+  policy_arn = "arn:${local.partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  3. Lambda: data-quality gate (CONTAINER artifact).
 #

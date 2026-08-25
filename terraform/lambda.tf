@@ -4,27 +4,47 @@ locals {
 
   # Persistent desired state. Add a ZIP Lambda here only after its role,
   # bootstrap artifact, and integration contract exist in code.
-  zip_lambda_components = {
-    arrival = {
-      function_name       = local.arrival_lambda_name
-      description         = "Validate a landing CSV and start the data-pipeline state machine."
-      role_arn            = aws_iam_role.lambda_arrival.arn
-      runtime             = "python3.12"
-      handler             = "handler.lambda_handler"
-      memory_size         = 128
-      timeout             = 20
-      bootstrap_key       = local.arrival_bootstrap_key
-      service_identifier  = local.arrival_service_identifier
-      service_description = "Deploy the arrival-handler ZIP to the Lambda created by OpenTofu."
-      environment_variables = {
-        ACTIVE_RELEASE_KEY = local.active_release_key
-        ARTIFACTS_BUCKET   = aws_s3_bucket.zone["artifacts"].id
-        DATA_BUCKET        = aws_s3_bucket.zone["data"].id
-        PIPELINE_NAME      = var.pipeline_name
-        STATE_MACHINE_ARN  = aws_sfn_state_machine.orchestrator.arn
+  zip_lambda_components = merge(
+    {
+      arrival = {
+        function_name       = local.arrival_lambda_name
+        description         = "Validate a landing CSV and start the data-pipeline state machine."
+        role_arn            = aws_iam_role.lambda_arrival.arn
+        runtime             = "python3.12"
+        handler             = "handler.lambda_handler"
+        memory_size         = 128
+        timeout             = 20
+        bootstrap_key       = local.arrival_bootstrap_key
+        service_identifier  = local.arrival_service_identifier
+        service_description = "Deploy the arrival-handler ZIP to the Lambda created by OpenTofu."
+        environment_variables = {
+          ACTIVE_RELEASE_KEY = local.active_release_key
+          ARTIFACTS_BUCKET   = aws_s3_bucket.zone["artifacts"].id
+          DATA_BUCKET        = aws_s3_bucket.zone["data"].id
+          PIPELINE_NAME      = var.pipeline_name
+          STATE_MACHINE_ARN  = aws_sfn_state_machine.orchestrator.arn
+        }
+      }
+    },
+    {
+      for component_id, component in var.additional_zip_lambdas : component_id => {
+        function_name       = "${local.name}-${var.pipeline_name}-${replace(component_id, "_", "-")}"
+        description         = component.description
+        role_arn            = aws_iam_role.lambda_additional[component_id].arn
+        runtime             = component.runtime
+        handler             = component.handler
+        memory_size         = component.memory_size
+        timeout             = component.timeout
+        bootstrap_key       = "lambdas/${var.pipeline_name}/${component_id}/bootstrap/${component.bootstrap_filename}"
+        service_identifier  = component.service_identifier
+        service_description = "Deploy the ${component_id} ZIP to the Lambda created by OpenTofu."
+        environment_variables = merge(
+          { PIPELINE_NAME = var.pipeline_name },
+          component.environment_variables,
+        )
       }
     }
-  }
+  )
 }
 
 moved {
@@ -53,6 +73,7 @@ resource "aws_lambda_function" "zip" {
   depends_on = [
     aws_iam_role_policy.lambda_arrival,
     aws_iam_role_policy_attachment.lambda_arrival_basic,
+    aws_iam_role_policy_attachment.lambda_additional_basic,
   ]
 
   tags = {

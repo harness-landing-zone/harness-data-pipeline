@@ -78,6 +78,39 @@ variable "harness_s3_connector_ref" {
   default     = "account.s3storage"
 }
 
+variable "additional_zip_lambdas" {
+  description = "Additional ZIP Lambdas and matching Harness Services managed by the component loop."
+  type = map(object({
+    service_identifier    = string
+    description           = string
+    bootstrap_filename    = optional(string, "lambda.zip")
+    runtime               = optional(string, "python3.12")
+    handler               = optional(string, "handler.lambda_handler")
+    memory_size           = optional(number, 128)
+    timeout               = optional(number, 20)
+    environment_variables = optional(map(string), {})
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for component_id, component in var.additional_zip_lambdas :
+      component_id != "arrival" &&
+      can(regex("^[a-z0-9][a-z0-9_-]*$", component_id)) &&
+      can(regex("^[A-Za-z_][0-9A-Za-z_$-]*$", component.service_identifier)) &&
+      can(regex("^[A-Za-z0-9][A-Za-z0-9._-]*\\.zip$", component.bootstrap_filename)) &&
+      component.memory_size >= 128 && component.memory_size <= 10240 &&
+      component.timeout >= 1 && component.timeout <= 900
+    ])
+    error_message = "Additional Lambda keys, Service identifiers, ZIP filenames, memory, or timeout values are invalid; the reserved key 'arrival' cannot be replaced."
+  }
+
+  validation {
+    condition     = length(distinct([for component in values(var.additional_zip_lambdas) : component.service_identifier])) == length(var.additional_zip_lambdas)
+    error_message = "Each additional Lambda must have a unique Harness Service identifier."
+  }
+}
+
 variable "import_existing_harness_arrival_service" {
   description = "Import an existing Harness arrival service during plan/apply instead of creating it. Enable only for brownfield onboarding."
   type        = bool

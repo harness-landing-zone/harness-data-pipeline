@@ -12,14 +12,14 @@ this stack already exists, migrate or import its state before the first plan.
 |---|---|---|
 | S3 buckets | 2 | `data` for zone prefixes; `artifacts` for deployed code |
 | Bucket hardening | ×2 | versioning, SSE, public-access block, TLS-only policy, lifecycle |
-| IAM roles | 4 | Glue jobs, arrival Lambda, DQ-gate Lambda, Step Functions |
+| IAM roles | 5 | Glue jobs, two ZIP Lambdas, DQ-gate Lambda, Step Functions |
 | ECR repository | 1 | container image for the DQ-gate Lambda, **immutable tags** |
 | Glue job | 1 | Stable job shell; each run selects an immutable script key |
-| Arrival Lambda | 1 | Validates a landing event, resolves the active release, starts one execution |
+| ZIP Lambdas | 2 | Golden arrival handler plus the tfvars-driven transform example |
 | Step Functions workflow | 1 | Standard workflow with one synchronous Glue task |
 | S3 event notification | 1 | Only `accounts-daily/landing/*.csv` invokes the arrival Lambda |
 | CloudWatch log group | 1 | Step Functions logs retained for 14 days |
-| Harness CD service | 1 | Deploys immutable ZIP releases to the OpenTofu-created arrival Lambda |
+| Harness CD services | 2 | One generated Service for each OpenTofu-created ZIP Lambda |
 
 `artifacts` is the one to look at closely. It is not a data zone — it is where
 Glue job code and the shared Python wheel live. **It is a deploy target.**
@@ -27,9 +27,13 @@ Glue job code and the shared Python wheel live. **It is a deploy target.**
 ## Bootstrap prerequisites
 
 The existing reference environment has the Glue bootstrap script, Lambda
-bootstrap ZIP, and active-release manifest already published. On a clean
-environment those three objects must exist before the full apply; they are
-release artifacts, not Terraform resources.
+bootstrap ZIPs, and active-release manifest already published. On a clean
+environment those objects must exist before the full apply; they are release
+artifacts, not Terraform resources. The new transform Lambda expects:
+
+```text
+s3://<artifacts-bucket>/lambdas/accounts-daily/transform/bootstrap/transform.zip
+```
 
 The Glue publication mechanic is:
 
@@ -103,13 +107,14 @@ to create each Lambda shell and its matching Harness Service. OpenTofu already
 creates independent graph nodes concurrently; dependencies still determine the
 order.
 
-Keep the desired component inventory and the deployment subset separate.
-`local.zip_lambda_components` declares which ZIP Lambdas and Harness Services
-exist. `LAMBDA_SERVICES_TO_DEPLOY` is an execution-time CSV list that an Input
-Set may narrow to one or more existing Services; it must never be fed back into
-OpenTofu because omitted components would then be planned for deletion.
-Each generated Service owns its component-specific bootstrap artifact key, so
-the provisioning Input Set does not contain a shared Lambda file path.
+The golden `arrival` component and `additional_zip_lambdas` from
+`lambda-components.auto.tfvars` declare which ZIP Lambdas and matching Harness
+Services exist. By default, the Apply step returns their identifiers and the
+deployment stage converts that output to the list used by Repeat. A Lambda-only
+trigger can skip the IaCM stage and supply `LAMBDA_SERVICES_TO_DEPLOY` as a CSV
+subset instead. Each generated Service owns its component-specific bootstrap
+artifact key, so the provisioning Input Set does not contain a shared Lambda
+file path.
 
 The deployment stage uses the Harness **Repeat** strategy now, even while its
 derived list contains one Service, so the one-to-two component transition can

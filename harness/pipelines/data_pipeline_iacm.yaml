@@ -55,7 +55,7 @@ pipeline:
         name: Deploy Lambda Service
         identifier: deploy_lambda_service
         type: Deployment
-        description: Deploy an immutable ZIP to each selected Service created or updated by the IaCM stage.
+        description: Deploy an immutable ZIP to each selected Service.
         spec:
           deploymentType: AwsLambda
           service:
@@ -94,7 +94,7 @@ pipeline:
   variables:
     - name: LAMBDA_SERVICES_TO_DEPLOY
       type: String
-      description: Comma-separated deployment subset. Defaults to every ZIP Lambda Service managed by this workspace.
+      description: Comma-separated Service identifiers supplied by a Lambda-only trigger, or all Services returned by IaCM by default.
       required: false
       value: <+input>.default(<+pipeline.stages.provision_aws_graph.spec.execution.steps.apply.output.outputVariables.harness_lambda_service_identifiers_csv>)
   allowStageExecutions: true
