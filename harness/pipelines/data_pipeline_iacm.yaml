@@ -3,7 +3,7 @@ pipeline:
   identifier: data_pipeline_iacm
   projectIdentifier: data_pipeline_reference
   orgIdentifier: data_engineers
-  description: Provision the stable AWS graph and generated Harness Lambda Services.
+  description: Provision the stable AWS graph, then deploy selected ZIP Lambda releases.
   tags: {}
   stages:
     - stage:
@@ -51,4 +51,50 @@ pipeline:
             description: AWS region used by the IaCM plugin and STS.
             required: true
             value: eu-west-2
+    - stage:
+        name: Deploy Lambda Service
+        identifier: deploy_lambda_service
+        type: Deployment
+        description: Deploy an immutable ZIP to each selected Service.
+        spec:
+          deploymentType: AwsLambda
+          service:
+            serviceRef: <+repeat.item>
+          environment:
+            environmentRef: development
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: arrival_lambda_eu_west_2
+          execution:
+            steps:
+              - step:
+                  name: Deploy Lambda
+                  identifier: deploy_lambda
+                  type: AwsLambdaDeploy
+                  timeout: 10m
+                  spec: {}
+            rollbackSteps:
+              - step:
+                  name: Roll Back Lambda
+                  identifier: rollback_lambda
+                  type: AwsLambdaRollback
+                  timeout: 10m
+                  spec: {}
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+        strategy:
+          repeat:
+            items: <+<+pipeline.variables.LAMBDA_SERVICES_TO_DEPLOY>.split(",")>
+            maxConcurrency: 2
+  variables:
+    - name: LAMBDA_SERVICES_TO_DEPLOY
+      type: String
+      description: Comma-separated Service identifiers supplied by a Lambda-only trigger, or all Services returned by IaCM by default.
+      required: false
+      value: <+input>.default(<+pipeline.stages.provision_aws_graph.spec.execution.steps.apply.output.outputVariables.harness_lambda_service_identifiers_csv>)
   allowStageExecutions: true

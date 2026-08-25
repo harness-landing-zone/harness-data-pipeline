@@ -39,10 +39,7 @@ s3://<artifacts-bucket>/lambdas/accounts-daily/transform/bootstrap/transform.zip
 ```
 
 That bootstrap object exists only to break the creation dependency. Component
-CI remains responsible for publishing real immutable releases, and Harness CD
-owns all code deployments and published Lambda versions after creation.
-OpenTofu ignores changes to the Lambda code-source attributes after bootstrap;
-it continues to manage function configuration, IAM, permissions, and triggers.
+CI remains responsible for publishing and deploying real immutable releases.
 
 The Glue publication mechanic is:
 
@@ -78,8 +75,7 @@ creates the Harness CD service after its Lambda and artifact bucket exist. The
 Harness service display name is the AWS function name; its identifier remains a
 stable Harness-safe input. It also writes the complete generated function
 definition to Harness File Store and configures that supported manifest source
-on the Service. The Service artifact path is a required runtime input with no
-bootstrap default. Select OpenTofu 1.7 or later for the IaCM workspace.
+on the Service. Select OpenTofu 1.7 or later for the IaCM workspace.
 
 Add these environment variables to the IaCM workspace:
 
@@ -119,12 +115,22 @@ order.
 
 The golden `arrival` component and `additional_zip_lambdas` from
 `lambda-components.auto.tfvars` declare which ZIP Lambdas and matching Harness
-Services exist. `data_pipeline_iacm` creates or updates those stable entities
-but never deploys application code. `lambda_cd` deploys one Service and one
-immutable S3 artifact per execution, normally from an artifact trigger. Use
-separate trigger/input-set instances when several components share the same CD
-pipeline; do not batch them behind a CSV selector because each component has a
-different artifact identity and rollback history.
+Services exist. By default, the Apply step returns their identifiers and the
+deployment stage converts that output to the list used by Repeat. A Lambda-only
+trigger can skip the IaCM stage and supply `LAMBDA_SERVICES_TO_DEPLOY` as a CSV
+subset instead. Each generated Service owns its component-specific bootstrap
+artifact key, so the provisioning Input Set does not contain a shared Lambda
+file path.
+
+The deployment stage uses the Harness **Repeat** strategy now, even while its
+derived list contains one Service, so the one-to-two component transition can
+be tested without changing the pipeline definition. `maxConcurrency` limits
+concurrent repeat iterations; the separate **Parallelism** strategy is not used
+for this case. Continue only after all repeats complete, then promote the
+release manifest and run system integration tests. Keep real dependencies
+sequential: infrastructure before code deployment, ZIP/image publication before
+its Service deployment, and Step Functions or manifest promotion after every
+referenced component is ready.
 
 `destroyable` defaults to `false`. Enable it only for an explicitly disposable
 environment.

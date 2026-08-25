@@ -83,6 +83,11 @@ output "harness_lambda_service_identifiers" {
   value       = sort([for service in harness_platform_service.lambda : service.identifier])
 }
 
+output "harness_lambda_service_identifiers_csv" {
+  description = "Comma-separated Harness Service identifiers for a downstream Repeat strategy."
+  value       = join(",", sort([for service in harness_platform_service.lambda : service.identifier]))
+}
+
 output "naming_contract" {
   description = <<-DESC
     The IAM roles grant access by wildcard over these name patterns. Anything you

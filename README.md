@@ -21,10 +21,6 @@ Before the first run:
    exist in the artifact bucket.
 6. Run `harness/pipelines/data_pipeline_iacm.yaml` manually: init, plan,
    approval, apply.
-7. Create `harness/pipelines/lambda_cd.yaml` and configure an S3 artifact
-   trigger or input set for each Lambda Service. Supply an immutable release
-   key; the bootstrap key is not a deployment default.
 
-Application CI is intentionally deferred until the component release
-relationships are agreed. IaCM and Lambda CD are separate so a later
-infrastructure apply cannot redeploy bootstrap code.
+Application CI/CD is intentionally deferred until the component release
+relationships are agreed.
