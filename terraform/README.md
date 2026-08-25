@@ -63,7 +63,9 @@ Infrastructure settings have working defaults (`eu-west-2`, prefix
 OpenTofu renders `templates/harness-zip-lambda-service.yaml.tftpl` and
 creates the Harness CD service after its Lambda and artifact bucket exist. The
 Harness service display name is the AWS function name; its identifier remains a
-stable Harness-safe input. Select OpenTofu 1.7 or later for the IaCM workspace.
+stable Harness-safe input. It also writes the complete generated function
+definition to Harness File Store and configures that supported manifest source
+on the Service. Select OpenTofu 1.7 or later for the IaCM workspace.
 
 Add these environment variables to the IaCM workspace:
 
@@ -77,9 +79,8 @@ needs Service create/update permissions in `harness_org_id` and
 `harness_project_id`. The S3 connector is supplied by
 `harness_s3_connector_ref`.
 
-This project already contains the inline `arrival_lambda` Harness service. Make
-it state-managed by setting this OpenTofu workspace variable for the first
-plan/approval/apply:
+For brownfield onboarding only, make an existing `arrival_lambda` Harness
+service state-managed during the first plan/approval/apply:
 
 ```hcl
 import_existing_harness_arrival_service = true

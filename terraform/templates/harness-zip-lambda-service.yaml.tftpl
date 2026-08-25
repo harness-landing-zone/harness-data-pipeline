@@ -19,10 +19,10 @@ service:
             type: AwsLambdaFunctionDefinition
             spec:
               store:
-                type: Inline
+                type: Harness
                 spec:
-                  content: |-
-                    ${FUNCTION_DEFINITION}
+                  files:
+                    - ${FUNCTION_DEFINITION_PATH}
       artifacts:
         primary:
           primaryArtifactRef: lambda_zip
