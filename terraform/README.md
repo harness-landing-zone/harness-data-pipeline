@@ -26,14 +26,20 @@ Glue job code and the shared Python wheel live. **It is a deploy target.**
 
 ## Bootstrap prerequisites
 
-The existing reference environment has the Glue bootstrap script, Lambda
-bootstrap ZIPs, and active-release manifest already published. On a clean
+The existing reference environment has the Glue bootstrap script, arrival
+Lambda bootstrap ZIP, and active-release manifest already published. On a clean
 environment those objects must exist before the full apply; they are release
-artifacts, not Terraform resources. The new transform Lambda expects:
+artifacts, not Terraform resources.
+
+For every additional tfvars-driven Lambda, IaCM creates a minimal bootstrap ZIP
+and publishes it before creating the function. For example, transform uses:
 
 ```text
 s3://<artifacts-bucket>/lambdas/accounts-daily/transform/bootstrap/transform.zip
 ```
+
+That bootstrap object exists only to break the creation dependency. Component
+CI remains responsible for publishing and deploying real immutable releases.
 
 The Glue publication mechanic is:
 

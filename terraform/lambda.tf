@@ -52,6 +52,40 @@ moved {
   to   = aws_lambda_function.zip["arrival"]
 }
 
+# IaCM owns only this minimal creation artifact. Component CI replaces it with
+# immutable release ZIPs after the Lambda shell and Harness Service exist.
+resource "archive_file" "lambda_bootstrap" {
+  for_each = var.additional_zip_lambdas
+
+  type             = "zip"
+  output_file_mode = "0666"
+  output_path      = "${path.module}/.terraform/${each.key}-bootstrap.zip"
+
+  source {
+    filename = "handler.py"
+    content  = <<-PY
+      def lambda_handler(event, _context):
+          return {"component": "${each.key}", "status": "bootstrap"}
+    PY
+  }
+}
+
+resource "aws_s3_object" "lambda_bootstrap" {
+  for_each = var.additional_zip_lambdas
+
+  bucket                 = aws_s3_bucket.zone["artifacts"].id
+  key                    = local.zip_lambda_components[each.key].bootstrap_key
+  source                 = archive_file.lambda_bootstrap[each.key].output_path
+  source_hash            = archive_file.lambda_bootstrap[each.key].output_md5
+  content_type           = "application/zip"
+  server_side_encryption = "AES256"
+
+  tags = {
+    Component = "lambda-${each.key}"
+    Artifact  = "bootstrap"
+  }
+}
+
 resource "aws_lambda_function" "zip" {
   for_each = local.zip_lambda_components
 
@@ -74,6 +108,7 @@ resource "aws_lambda_function" "zip" {
     aws_iam_role_policy.lambda_arrival,
     aws_iam_role_policy_attachment.lambda_arrival_basic,
     aws_iam_role_policy_attachment.lambda_additional_basic,
+    aws_s3_object.lambda_bootstrap,
   ]
 
   tags = {
