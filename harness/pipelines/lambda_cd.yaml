@@ -1,0 +1,44 @@
+pipeline:
+  name: Lambda CD
+  identifier: lambda_cd
+  projectIdentifier: data_pipeline_reference
+  orgIdentifier: data_engineers
+  description: Deploy one immutable Lambda ZIP selected by an artifact trigger or runtime input.
+  tags: {}
+  stages:
+    - stage:
+        name: Deploy Lambda
+        identifier: deploy_lambda
+        type: Deployment
+        spec:
+          deploymentType: AwsLambda
+          service:
+            serviceRef: <+input>
+          environment:
+            environmentRef: development
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: arrival_lambda_eu_west_2
+          execution:
+            steps:
+              - step:
+                  name: Deploy Lambda
+                  identifier: deploy_lambda
+                  type: AwsLambdaDeploy
+                  timeout: 10m
+                  spec: {}
+            rollbackSteps:
+              - step:
+                  name: Roll Back Lambda
+                  identifier: rollback_lambda
+                  type: AwsLambdaRollback
+                  timeout: 10m
+                  spec: {}
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+  allowStageExecutions: false

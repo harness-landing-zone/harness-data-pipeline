@@ -115,6 +115,78 @@ resource "aws_lambda_function" "zip" {
     Component = "lambda-${each.key}"
     Artifact  = "zip"
   }
+
+  # IaCM needs bootstrap code to create the function. Harness CD owns every
+  # subsequent code deployment and published version.
+  lifecycle {
+    ignore_changes = [
+      s3_bucket,
+      s3_key,
+      s3_object_version,
+      source_code_hash,
+    ]
+  }
+}
+
+resource "harness_platform_file_store_file" "lambda_function_definition" {
+  for_each = local.zip_lambda_components
+
+  identifier        = "${each.value.service_identifier}_function_definition"
+  name              = "${each.value.service_identifier}-function-definition.json"
+  description       = "AWS Lambda function definition for ${aws_lambda_function.zip[each.key].function_name}."
+  org_id            = var.harness_org_id
+  project_id        = var.harness_project_id
+  parent_identifier = "Root"
+  content = jsonencode({
+    functionName = aws_lambda_function.zip[each.key].function_name
+    runtime      = aws_lambda_function.zip[each.key].runtime
+    handler      = aws_lambda_function.zip[each.key].handler
+    role         = each.value.role_arn
+    memorySize   = aws_lambda_function.zip[each.key].memory_size
+    timeout      = aws_lambda_function.zip[each.key].timeout
+    environment = {
+      variables = each.value.environment_variables
+    }
+  })
+  mime_type  = "application/json"
+  file_usage = "MANIFEST_FILE"
+}
+
+moved {
+  from = harness_platform_service.arrival
+  to   = harness_platform_service.lambda["arrival"]
+}
+
+import {
+  for_each = var.import_existing_harness_arrival_service ? {
+    arrival = "${var.harness_org_id}/${var.harness_project_id}/${local.arrival_service_identifier}"
+  } : {}
+
+  to = harness_platform_service.lambda[each.key]
+  id = each.value
+}
+
+resource "harness_platform_service" "lambda" {
+  for_each = local.zip_lambda_components
+
+  identifier  = each.value.service_identifier
+  name        = aws_lambda_function.zip[each.key].function_name
+  description = each.value.service_description
+  org_id      = var.harness_org_id
+  project_id  = var.harness_project_id
+  yaml = templatefile("${path.module}/templates/harness-zip-lambda-service.yaml.tftpl", {
+    SERVICE_NAME             = jsonencode(aws_lambda_function.zip[each.key].function_name)
+    SERVICE_IDENTIFIER       = jsonencode(each.value.service_identifier)
+    SERVICE_DESCRIPTION      = jsonencode(each.value.service_description)
+    COMPONENT_ID             = jsonencode(each.key)
+    ORG_IDENTIFIER           = jsonencode(var.harness_org_id)
+    PROJECT_IDENTIFIER       = jsonencode(var.harness_project_id)
+    PIPELINE_NAME            = jsonencode(var.pipeline_name)
+    S3_CONNECTOR_REF         = jsonencode(var.harness_s3_connector_ref)
+    AWS_REGION               = jsonencode(local.region)
+    ARTIFACTS_BUCKET         = jsonencode(aws_s3_bucket.zone["artifacts"].id)
+    FUNCTION_DEFINITION_PATH = jsonencode(harness_platform_file_store_file.lambda_function_definition[each.key].path)
+  })
 }
 
 resource "aws_lambda_permission" "s3_arrival" {
