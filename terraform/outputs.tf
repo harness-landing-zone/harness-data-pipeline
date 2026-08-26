@@ -35,16 +35,10 @@ output "s3_paths" {
 output "iam_roles" {
   description = "Execution role ARNs to select while clickopsing each component."
   value = {
-    glue_job       = aws_iam_role.glue_job.arn
-    lambda_arrival = aws_iam_role.lambda_arrival.arn
-    lambda_dq_gate = aws_iam_role.lambda_dq_gate.arn
-    state_machine  = aws_iam_role.state_machine.arn
+    glue_job      = aws_iam_role.glue_job.arn
+    lambdas       = { for lambda_id, role in aws_iam_role.lambda : lambda_id => role.arn }
+    state_machine = aws_iam_role.state_machine.arn
   }
-}
-
-output "ecr_repository_url" {
-  description = "Push target for the data-quality gate container image."
-  value       = aws_ecr_repository.dq_gate.repository_url
 }
 
 output "ingest_raw_glue_job" {
@@ -56,35 +50,20 @@ output "ingest_raw_glue_job" {
 }
 
 output "runtime_orchestration" {
-  description = "Arrival trigger and state machine for the event-driven landing-to-raw path."
+  description = "Lambda functions and state machine created by IaCM."
   value = {
-    arrival_lambda     = aws_lambda_function.zip["arrival"].function_name
-    state_machine_arn  = aws_sfn_state_machine.orchestrator.arn
-    active_release_uri = "s3://${aws_s3_bucket.zone["artifacts"].id}/${local.active_release_key}"
+    lambdas           = { for lambda_id, lambda in aws_lambda_function.lambda : lambda_id => lambda.function_name }
+    state_machine_arn = aws_sfn_state_machine.orchestrator.arn
   }
-}
-
-output "harness_arrival_service" {
-  description = "Harness CD service generated for the OpenTofu-managed arrival Lambda."
-  value = {
-    identifier      = harness_platform_service.lambda["arrival"].identifier
-    name            = harness_platform_service.lambda["arrival"].name
-    lambda_function = aws_lambda_function.zip["arrival"].function_name
-  }
-}
-
-output "harness_arrival_service_identifier" {
-  description = "Scalar Harness Service identifier for a downstream CD stage."
-  value       = harness_platform_service.lambda["arrival"].identifier
 }
 
 output "harness_lambda_service_identifiers" {
-  description = "Harness Service identifiers for every OpenTofu-managed ZIP Lambda."
+  description = "Harness Service identifiers created for the Lambda deployment stage."
   value       = sort([for service in harness_platform_service.lambda : service.identifier])
 }
 
 output "harness_lambda_service_identifiers_csv" {
-  description = "Comma-separated Harness Service identifiers for a downstream Repeat strategy."
+  description = "Comma-separated Harness Service identifiers consumed by the downstream Repeat stage."
   value       = join(",", sort([for service in harness_platform_service.lambda : service.identifier]))
 }
 
@@ -96,13 +75,8 @@ output "naming_contract" {
   DESC
   value = {
     glue_jobs      = "${local.name}-${var.pipeline_name}-<stage>          e.g. ${local.name}-${var.pipeline_name}-ingest-raw"
-    lambdas        = "${local.name}-${var.pipeline_name}-<purpose>        e.g. ${local.name}-${var.pipeline_name}-arrival"
+    lambdas        = "${local.name}-${var.pipeline_name}-<component>      e.g. ${local.name}-${var.pipeline_name}-example-zip"
     state_machines = "${local.name}-${var.pipeline_name}-<name>           e.g. ${local.name}-${var.pipeline_name}-orchestrator"
     glue_databases = "${replace(var.pipeline_name, "-", "_")}_<zone>      e.g. ${replace(var.pipeline_name, "-", "_")}_curated"
   }
-}
-
-output "docker_login_command" {
-  description = "Run this before pushing the dq-gate image."
-  value       = "aws ecr get-login-password --region ${local.region} | docker login --username AWS --password-stdin ${local.account_id}.dkr.ecr.${local.region}.amazonaws.com"
 }

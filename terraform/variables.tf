@@ -30,7 +30,7 @@ variable "env" {
 }
 
 variable "pipeline_name" {
-  description = "Logical name of the data pipeline this environment hosts. Scopes IAM and ECR naming."
+  description = "Logical name of the data pipeline this environment hosts."
   type        = string
   default     = "accounts-daily"
 
@@ -42,7 +42,7 @@ variable "pipeline_name" {
 
 variable "destroyable" {
   description = <<-DESC
-    Allow `terraform destroy` to remove non-empty S3 buckets and ECR repositories.
+    Allow `terraform destroy` to remove non-empty S3 buckets.
     Keep false unless this is an explicitly disposable environment.
   DESC
   type        = bool
@@ -61,58 +61,36 @@ variable "harness_project_id" {
   default     = "data_pipeline_reference"
 }
 
-variable "harness_arrival_service_identifier" {
-  description = "Stable Harness identifier for the arrival Lambda service. Override for each generated pipeline instance."
-  type        = string
-  default     = "arrival_lambda"
-
-  validation {
-    condition     = can(regex("^[A-Za-z_][0-9A-Za-z_$-]*$", var.harness_arrival_service_identifier))
-    error_message = "harness_arrival_service_identifier must be a valid Harness identifier."
-  }
-}
-
 variable "harness_s3_connector_ref" {
-  description = "Harness AWS connector used by CD to read the Lambda ZIP from S3. Include account. or org. for scoped connectors."
+  description = "Harness AWS connector used by CD to read Lambda ZIPs from S3."
   type        = string
   default     = "account.s3storage"
 }
 
-variable "additional_zip_lambdas" {
-  description = "Additional ZIP Lambdas and matching Harness Services managed by the component loop."
+variable "lambdas" {
+  description = "ZIP Lambdas and matching Harness Services, keyed by stable identifier."
   type = map(object({
-    service_identifier    = string
-    description           = string
-    bootstrap_filename    = optional(string, "lambda.zip")
-    runtime               = optional(string, "python3.12")
-    handler               = optional(string, "handler.lambda_handler")
+    description           = optional(string, "ZIP Lambda deployed by Harness CD.")
     memory_size           = optional(number, 128)
-    timeout               = optional(number, 20)
+    timeout               = optional(number, 10)
     environment_variables = optional(map(string), {})
   }))
   default = {}
 
   validation {
     condition = alltrue([
-      for component_id, component in var.additional_zip_lambdas :
-      component_id != "arrival" &&
-      can(regex("^[a-z0-9][a-z0-9_-]*$", component_id)) &&
-      can(regex("^[A-Za-z_][0-9A-Za-z_$-]*$", component.service_identifier)) &&
-      can(regex("^[A-Za-z0-9][A-Za-z0-9._-]*\\.zip$", component.bootstrap_filename)) &&
-      component.memory_size >= 128 && component.memory_size <= 10240 &&
-      component.timeout >= 1 && component.timeout <= 900
+      for lambda_id in keys(var.lambdas) :
+      can(regex("^[a-z][a-z0-9_]{1,30}$", lambda_id))
     ])
-    error_message = "Additional Lambda keys, Service identifiers, ZIP filenames, memory, or timeout values are invalid; the reserved key 'arrival' cannot be replaced."
+    error_message = "Lambda keys must be 2-31 lowercase alphanumeric or underscore characters and start with a letter."
   }
 
   validation {
-    condition     = length(distinct([for component in values(var.additional_zip_lambdas) : component.service_identifier])) == length(var.additional_zip_lambdas)
-    error_message = "Each additional Lambda must have a unique Harness Service identifier."
+    condition = alltrue([
+      for lambda in values(var.lambdas) :
+      lambda.memory_size >= 128 && lambda.memory_size <= 10240 &&
+      lambda.timeout >= 1 && lambda.timeout <= 900
+    ])
+    error_message = "Lambda memory_size must be 128-10240 MB and timeout must be 1-900 seconds."
   }
-}
-
-variable "import_existing_harness_arrival_service" {
-  description = "Import an existing Harness arrival service during plan/apply instead of creating it. Enable only for brownfield onboarding."
-  type        = bool
-  default     = false
 }

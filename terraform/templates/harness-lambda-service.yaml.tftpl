@@ -2,12 +2,6 @@ service:
   name: ${SERVICE_NAME}
   identifier: ${SERVICE_IDENTIFIER}
   description: ${SERVICE_DESCRIPTION}
-  tags:
-    type: lambda
-    managed_by: iacm
-    data_pipeline: ${PIPELINE_NAME}
-    component: ${COMPONENT_ID}
-    aws_function: ${SERVICE_NAME}
   orgIdentifier: ${ORG_IDENTIFIER}
   projectIdentifier: ${PROJECT_IDENTIFIER}
   serviceDefinition:
@@ -30,7 +24,7 @@ service:
             - identifier: lambda_zip
               type: AmazonS3
               spec:
-                connectorRef: ${S3_CONNECTOR_REF}
+                connectorRef: ${CONNECTOR_REF}
                 region: ${AWS_REGION}
                 bucketName: ${ARTIFACTS_BUCKET}
-                filePath: ${BOOTSTRAP_KEY}
+                filePath: ${ARTIFACT_KEY}
