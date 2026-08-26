@@ -20,6 +20,7 @@ locals {
       role         = aws_iam_role.lambda[lambda_id].arn
       memorySize   = lambda.memory_size
       timeout      = lambda.timeout
+      tags         = local.common_tags
       environment = {
         variables = lambda.environment
       }
