@@ -67,9 +67,9 @@ resource "aws_s3_object" "lambda_bootstrap" {
   source      = archive_file.lambda_bootstrap[each.key].output_path
   source_hash = archive_file.lambda_bootstrap[each.key].output_md5
 
-  # The delivery pipeline owns the ZIP after the bootstrap upload.
+  # IaCM creates the bootstrap object; CI/CD owns its content and metadata afterward.
   lifecycle {
-    ignore_changes = [source, source_hash]
+    ignore_changes = all
   }
 }
 
